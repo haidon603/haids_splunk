@@ -1,0 +1,37 @@
+#powershell bypass attempts, to drop malware on a disk "living off the land" style
+index=* sourcetype=WinEventLog EventCode=4688  (powershell* AND -ExecutionPolicy) OR (powershell* AND bypass) OR (powershell*
+AND -noprofile) | eval Message=split(Message,".") | eval Short_Message=mvindex(Message,0) | table _time, host,
+Account_Name, Process_Name, Process_ID, Process_Command_Line, New_Process_Name, New_Process_ID,
+Creator_Process_ID, Short_Message. Caller_Computer_Name, Security_ID, src_nt_host, user
+|  sort result
+
+
+#using word or excel to start cmd.exe or wscript.exe
+sourcetype=WinEventLog (cmd.exe) EventCode=4688
+    [search sourcetype=wineventlog:security (WINWORD OR EXCEL) EventCode=4688 
+         | dedup New_Process_ID 
+         | rename New_Process_ID as Creator_Process_ID 
+         | fields Creator_Process_ID ]
+| table _time,Account_Name,ComputerName,Creator_Process_ID,New_Process_Name,Process_Command_Line
+
+
+#audit log cleared
+index=ava_cs_wineventlog sourcetype=WinEventLog (EventCode=1102 OR EventCode=104)
+
+#Lateral Movement Past 3 Hours bc of Logon on more than 1 DC
+index=* sourcetype=WinEventLog LogName=Security (EventCode=4624 OR EventCode=4672) Logon_Type=3  NOT 
+(host=“DC1.com" OR host=“DC2.com" ) NOT (Account_Name="*$$" OR Account_Name="ANONYMOUS LOGON")
+| stats  count  BY dest src_ip dest_nt_domain user EventCode 
+| where Host_Count > 2
+
+#You do not need to alert on all processes launching, just suspicious ones or ones known to be used by threat actors, be aware of who is running what and why (exempt as needed)
+index=* sourcetype=WinEventLog  EventCode=4688 NOT (Account_Name=*$$) (at.exe OR bcdedit.exe OR chcp.exe OR
+cmd.exe OR cscript.exe OR ipconfig.exe OR mimikatz.exe OR nbtstat.exe OR nc.exe OR netcat.exe OR netstat.exe OR
+nmap OR nslookup.exe OR bcp.exe OR sqlcmd.exe OR OSQL.exe OR ping.exe OR powershell.exe OR powercat.ps1 OR
+psexec.exe OR psexecsvc.exe OR psLoggedOn.exe OR procdump.exe OR rar.exe OR reg.exe OR route.exe OR runas.exe
+OR sc.exe OR schtasks.exe OR sethc.exe OR ssh.exe OR sysprep.exe OR systeminfo.exe OR system32\\net.exe OR
+tracert.exe OR vssadmin.exe OR whoami.exe OR winrar.exe OR wscript.exe OR winrm.* OR winrs.* OR wmic.exe OR
+wsmprovhost.exe OR net.exe) | eval Message=split(Message,".") | eval Short_Message=mvindex(Message,0)
+|  table _time, host,
+Account_Name, New_Process_Name, New_Process_ID,
+Creator_Process_ID, Short_Message
