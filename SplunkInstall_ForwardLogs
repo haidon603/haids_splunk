@@ -1,0 +1,44 @@
+#Splunk has a community edition, I highly reccomend interested individuals scoop up. This is the install process I used during CCDC competitions
+
+	1. Navigate to splunk site
+		a. Top right corner hit "free splunk" and make account to get download
+		b. Save download to easy directory
+		c. wget -O splunk-8.0.1-6db836e2fb9e-Linux-x86_64.tgz 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=x86_64&platform=linux&version=8.0.1&product=splunk&filename=splunk-8.0.1-6db836e2fb9e-Linux-x86_64.tgz&wget=true'
+		d. tar zxvf splunk-8.0.1-6db836e2fb9e-Linux-x86_64.tgz 
+		
+	2. Gunzip -c splunk-8.0.1-______.tgz | ( cd /home/splunk_haidon/; tar xvpf - )
+		a. Should take about 15 seconds
+    
+	3. cd /splunk/bin/
+		i. Create init.d script so now we can start or stop splunk
+			i. Sudo ./splunk enable boot-start
+      
+	4. Read eula, hit y x2
+		a. Hit space bar to go through agreement
+    
+	5. Service splunk start
+  
+	6. Make sure port 8000 is OPEN on FireWall
+		a. sudo apt install ufw
+		b. Sudo ufw allow 8000/tcp
+    
+	7. http://Server-IP:8000/ or http://Server-hostname:8000
+  
+  #Forwarding Log Time !!
+  
+  Make sure splunk is up and running
+
+	1. Configure indexer
+		a. ./splunk add forward-server HOST:9997 -auth USERNAME:PASSWORD
+    
+	2. Configure forwarder
+		a. sudo ./splunk add monitor LOG -sourcetype SOURCE_TYPE -index NAME
+    
+	3. Specify which data forwards
+		a. sudo ./splunk add monitor LOG -sourcetype SOURCE_TYPE -index NAME
+		b. For example, to add the /var/log/syslog file with the sourcetype of linux_logs and store it to the index called remotelogs, we would use the following command:
+    sudo ./splunk add monitor /var/log/syslog -sourcetype linux_logs -index remotelogs
+		
+	4. Restart the forwarder
+		a. Sudo service ./splunk restart
+
