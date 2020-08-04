@@ -1,0 +1,14 @@
+# c2c set time span for 3-5 hours
+#beaconing connections would have a high # of total connections, 
+#shorter time gaps between 1 connection to another AND lower variance of connection intervals that present repeating connections.
+#average connection interval - avg_gap (how long internal host is connecting) 
+#variation of interval - how consistent or regular the activity is 
+ 
+index=*  sourcetype="<proxy here>"
+| streamstats current=f last(_time) as next_time by dhost
+| eval gap = next_time - _time
+| stats count, avg(gap) as avg_gap, var(gap) as var_gap by dhost src_ip
+| search avg_gap<50 count>500
+| sort avg_gap
+
+
