@@ -1,0 +1,25 @@
+#https://www.splunk.com/en_us/blog/security/hunting-covid-themed-attacks-with-iocs.html
+#create a dashboard to examine at the end of each day (during pandemic that is) to see what traffic/users are going to known bad COVID threat associated IP addresses, urls, newly registered domains etc. 
+
+#The entire hunting dashboard lies on having the .txt file which also must be formattted, so I have the also added the final to this repository. It is worth nothing these are constantly getting updated. It also must be formatted in a way so that we can use it. Used Linux script to create a column Called 'isBad' and set it to 'True' for every entry
+
+#here is script to format raw txt
+#wget --no-check-certificate https://raw.githubusercontent.com/parthdmaniar/coronavirus-covid-19-SARS-CoV-2-IoCs/master/IPs && sed 's/$/,TRUE/' IPs > COVIDips.csv && echo 'ip,isBad' | cat - COVIDips.csv > temp && mv -f temp COVIDips.csv && rm -f IPs* && mv -f COVIDips.csv $SPLUNK_HOME/etc/apps/TA-covidIOCs/lookups/
+
+#added input lookup tables by going to settings>  lookups > lookup table files > new lookup table file > select file and name it so you can find it (you will know it was successfully uploaded by querying "|inputlookup COVIDips)
+
+# The count of URLs Associated with COVID that have been hit by an entity on your network (you will need to rerun query in verbose mode to see more deets, see below)
+ index=proxy sourcetype=proxy | lookup COVIDurls.csv url AS url | search isBad=TRUE, url
+|  stats count(url)
+
+#The count of Hashes Associated with COVID that have been hit by an entity on your network you will need to rerun query in verbose mode to see more deets, see below)
+index=proxy sourcetype=proxy | lookup COVIDhashes.csv hash AS hash | search isBad=TRUE, url
+|  stats count(hash)
+
+#Bad IPs (this one can also have FW, ids, and email server as source types) blacklist as needed
+index=proxy sourcetype=proxy    | lookup COVIDips.csv ip AS dstip   | search isBad=TRUE AND action=allowed NOT user=Internal_WCCP_Unauthenticated_User    NOT user=Guest_WCCP_Unauthenticated_User    NOT user=BYOD_WCCP_Unauthenticated_User   url="*"| top limit=20 dstip showcount=False
+
+#Bad URLs and their referers 
+index=proxy sourcetype=proxy    | lookup COVIDips.csv ip AS dstip  
+| search isBad=TRUE AND action=allowed NOT user=Internal_WCCP_Unauthenticated_User    NOT user=Guest_WCCP_Unauthenticated_User    NOT user=BYOD_WCCP_Unauthenticated_User   url="*" | top limit=10 dstip, url, app, referer
+|  table dstip, url, referer count, app
