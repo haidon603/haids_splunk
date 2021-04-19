@@ -1,0 +1,428 @@
+<form theme="dark">
+  <label>Covid Remote work</label>
+  <description>Authentications, Webinar links malformed, Suspicious Vaccine emails, Out of country VPNs, etc.</description>
+  <fieldset submitButton="True" autoRun="false">
+    <input type="text" token="user_token">
+      <label>Username</label>
+    </input>
+    <input type="time" token="tkn_time" searchWhenChanged="true">
+      <label>Time Window</label>
+      <default>
+        <earliest>-12h@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>successful VPN connection</title>
+      <map>
+        <search>
+          <query>(sourcetype="VPN" AND event_name=LOGIN)  | iplocation src_ip | geostats count by City latfield=lat longfield=lon</query>
+          <earliest>$tkn_time.earliest$</earliest>
+          <latest>$tkn_time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="mapping.choroplethLayer.colorBins">5</option>
+        <option name="mapping.choroplethLayer.colorMode">auto</option>
+        <option name="mapping.choroplethLayer.maximumColor">0xaf575a</option>
+        <option name="mapping.choroplethLayer.minimumColor">0x62b3b2</option>
+        <option name="mapping.choroplethLayer.neutralPoint">0</option>
+        <option name="mapping.choroplethLayer.shapeOpacity">0.75</option>
+        <option name="mapping.choroplethLayer.showBorder">1</option>
+        <option name="mapping.data.maxClusters">100</option>
+        <option name="mapping.legend.placement">bottomright</option>
+        <option name="mapping.map.center">(0,0)</option>
+        <option name="mapping.map.panning">1</option>
+        <option name="mapping.map.scrollZoom">0</option>
+        <option name="mapping.map.zoom">2</option>
+        <option name="mapping.markerLayer.markerMaxSize">50</option>
+        <option name="mapping.markerLayer.markerMinSize">10</option>
+        <option name="mapping.markerLayer.markerOpacity">0.8</option>
+        <option name="mapping.showTiles">1</option>
+        <option name="mapping.tileLayer.maxZoom">7</option>
+        <option name="mapping.tileLayer.minZoom">0</option>
+        <option name="mapping.tileLayer.tileOpacity">1</option>
+        <option name="mapping.type">marker</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </map>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>VPN logons for Specific user find UA/Src_ip</title>
+      <table>
+        <title>tww0888 &gt; not in canada ckw0665-personal vpn on router</title>
+        <search>
+          <query>(sourcetype="citrix:netscaler:syslog" AND event_name=LOGIN) OR (sourcetype=cisco:asa vendor_definition="User Authentication") 
+user=$user_token$ |  rename event_name as "User Authentication", src as "src_ip", type as "Browser_type" | iplocation src_ip  
+| fields user, 	Browser_type src_ip Country, City, Region | table  	
+user Browser_type src_ip Country Region City</query>
+          <earliest>$tkn_time.earliest$</earliest>
+          <latest>$tkn_time.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <format type="color" field="Country">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+      </table>
+    </panel>
+    <panel>
+      <title>VPN within 1 day for 1 user from more than 1 REGION over 3 days</title>
+      <table>
+        <search>
+          <query>(sourcetype="vpn" AND event_name=LOGIN) 
+| bucket _time span=1d | rename event_name as "User Authentication", src as "src_ip" | iplocation src_ip  
+| table  user, Country, Region, City 
+| eventstats values(Region) as Region by user
+| eval UniqueCountry=mvcount(Region)
+| where UniqueCountry&gt;1 
+| dedup user</query>
+          <earliest>$tkn_time.earliest$</earliest>
+          <latest>$tkn_time.latest$</latest>
+        </search>
+        <option name="count">5</option>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <format type="color" field="Country">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <format type="color" field="count">
+          <colorPalette type="minMidMax" maxColor="#53A051" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>VPN outside USA</title>
+      <table>
+        <title>possible bad IP data IP Location </title>
+        <search>
+          <query>(sourcetype="VPN" AND event_name=LOGIN)| iplocation src_ip | stats count by src_ip user, Country, City, Region | where Country!="United States"</query>
+          <earliest>-3d</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">50</option>
+        <option name="dataOverlayMode">heatmap</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">false</option>
+        <format type="color" field="user">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+      </table>
+    </panel>
+    <panel>
+      <title>VPN within 1 day for 1 user from more than 1 country over 3 days</title>
+      <table>
+        <title>India NOT AU dgg6537, kdd7883, tss3498</title>
+        <search>
+          <query>(sourcetype="VPN" AND event_name=LOGIN) 
+| bucket _time span=1d | rename event_name as "User Authentication", src as "src_ip" | iplocation src_ip  
+| table  user, Country, Region, City 
+| eventstats values(Country) as Country by user
+| eval UniqueCountry=mvcount(Country)
+| where UniqueCountry&gt;1</query>
+          <earliest>-3d</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">5</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="user">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Last 3 days of RSA failures</title>
+      <chart>
+        <search>
+          <query>sourcetype=rsa:securid:runtime:syslog action=failure | stats  count by user | where  count &gt; 8  | sort  - count</query>
+          <earliest>-3d@m</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">0</option>
+        <option name="charting.axisTitleX.visibility">visible</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisTitleY2.visibility">visible</option>
+        <option name="charting.axisX.abbreviation">none</option>
+        <option name="charting.axisX.scale">linear</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.axisY.scale">linear</option>
+        <option name="charting.axisY2.abbreviation">none</option>
+        <option name="charting.axisY2.enabled">0</option>
+        <option name="charting.axisY2.scale">inherit</option>
+        <option name="charting.chart">pie</option>
+        <option name="charting.chart.bubbleMaximumSize">50</option>
+        <option name="charting.chart.bubbleMinimumSize">10</option>
+        <option name="charting.chart.bubbleSizeBy">area</option>
+        <option name="charting.chart.nullValueMode">gaps</option>
+        <option name="charting.chart.showDataLabels">none</option>
+        <option name="charting.chart.sliceCollapsingThreshold">0.01</option>
+        <option name="charting.chart.stackMode">default</option>
+        <option name="charting.chart.style">shiny</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.layout.splitSeries">0</option>
+        <option name="charting.layout.splitSeries.allowIndependentYRanges">0</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+        <option name="charting.legend.mode">standard</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.lineWidth">2</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Last 3 days of RSA Investigate !!</title>
+      <table>
+        <search>
+          <query>index=RSA sourcetype=rsa:syslog user=$user_token$ 
+| stats count by user_first_name, user_last_name action vendor_event_type |  sort -count</query>
+          <earliest>-3d@m</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">5</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Possible Phishing Webinar Links</title>
+      <table>
+        <search>
+          <query>index=proxy
+
+url!="*.teams.microsoft.com:443"  
+url!="https://dc.services.visualstudio.com/v2/track"  
+dhost!="sfnam.loki.delve.office.com"  
+url!="https://teams.microsoft.com:443"  
+referer!="https://teams.microsoft.com/*" 
+referer!="https://admin.teams.microsoft.com/" 
+referer!="teams.microsoft.com"  
+dhost!="tasks.office.com"  
+dhost!="webshell.suite.office.com"  
+dhost!="upload.fp.measure.office.com"  
+dhost!="substrate.office.com"  
+dhost!="statics.retailservices.teams.cdn.office.net"  
+dhost!="static2.sharepointonline.com"  
+dhost!="*.gotowebinar.com"  
+dhost!="event.on24.com" url!="*onlinexperiences.com*" 
+referer!="https://applauncher.gotowebinar.com/" 
+url!="*teams.microsoft.com*" url!="*api.services.goto.com*"  
+url!="*statics.teams.cdn.office.net/*" 
+url!="*spoprod-a.akamaihd.net/*" 
+url!="*autologon.microsoftazuread-sso.com*"
+referer!="https://login.microsoftonline.com/*"  
+referer!="https://register.gotowebinar.com/"
+url!="https://studio-vod.akamaized.net/*"
+url!="https://presentations.akamaized.net/*"
+url!="https://wcc.on24.com/*"
+
+ | stats  count by user action dhost url referer body       | sort  -referer</query>
+          <earliest>$tkn_time.earliest$</earliest>
+          <latest>$tkn_time.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="action">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <format type="color" field="user">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <format type="color" field="count">
+          <colorPalette type="minMidMax" maxColor="#DC4E41" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <format type="color" field="url">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Possible Phishing (3 days)</title>
+      <table>
+        <search>
+          <query>sourcetype=MSExchange:2010:MessageTracking (PurportedSender="*@gmail.com" OR PurportedSender="*@hotmail.com" OR PurportedSender="*@yahoo.com" OR PurportedSender="*@outlook.com" OR PurportedSender="*@aim.com" OR PurportedSender="*@aol.com" OR PurportedSender="*@yandex.com" OR PurportedSender="*@protonmail.com" OR PurportedSender="*@protonmail.ch" OR PurportedSender="*@zohomail.com" OR PurportedSender="*@gmx.us" OR PurportedSender="*@gmx.com" OR PurportedSender="*@utanota.com" OR PurportedSender="*@tutanota.de" OR PurportedSender="*@ tutamail.com" OR PurportedSender="*@tuta.io" OR PurportedSender="*@keemail.me" OR PurportedSender="*@icloud.com") | stats count by PurportedSender | where count &gt; 100</query>
+          <earliest>-3d@m</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+    <panel>
+      <title>Domain Phishing</title>
+      <table>
+        <title>https://domaincheckplugin.com/typo</title>
+        <search>
+          <query>(index=email OR tag=email) 
+AND (sender_address=
+goggle.com OR goooogle.com OR g00gle.com)
+| stats count by sender_address recipient_address message_subject</query>
+          <earliest>-4h@m</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="sender_address">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <format type="color" field="count">
+          <colorPalette type="minMidMax" maxColor="#DC4E41" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+      </table>
+    </panel>
+
+  </row>
+  <row>
+    <panel>
+      <title>Vaccine Phishing Scams</title>
+      <table>
+        <search>
+          <query>(index=email OR tag=email) sender_address!="*@ <your domain here>"
+message_subject=*vaccine* 
+| stats values(message_subject) by sender_address</query>
+          <earliest>-3d@m</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="sender_address">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+      </table>
+    </panel>
+    <panel>
+      <table>
+        <title>Possible Phishing via Vaccine where a recipient not found</title>
+        <search>
+          <query>(index=email OR tag=email) sender_address!="*@ <your domain here>"
+message_subject=*vaccine* AND recipient_status="'550 5.1.1 RESOLVER.ADR.RecipNotFound; not found'" | stats count by sender_address recipient_address message_subject  | where count &gt; 1</query>
+          <earliest>-3d@m</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <format type="color" field="sender_address">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Wireless Events, possible brute force</title>
+      <table>
+        <title>selected access service is how they are connecting - excluding MAC usernames from username as this is from GUEST with captive portal and device remembers aguest SSID</title>
+        <search>
+          <query>index=ava_ss_ise sourcetype=cisco:acs    SelectedAccessService!=RSA_2FA_AnyConnect | regex UserName!="0x[a-fA-F0-9]+|\d+"   | stats  count by UserName MESSAGE_TEXT SelectedAccessService Calling_Station_ID    | rename  UserName as "Target Account", Device_IP_Address as "Location/AP where auth was attempted occured"   | sort  -count</query>
+          <earliest>$tkn_time.earliest$</earliest>
+          <latest>$tkn_time.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <format type="color" field="Target Account">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+        <format type="color" field="SelectedAccessService">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Certificates</title>
+      <table>
+        <search>
+          <query>sourcetype=certs
+| stats count by  app IssuerName event_name</query>
+          <earliest>-1m@m</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+        <format type="color" field="IssuerName">
+          <colorPalette type="sharedList"></colorPalette>
+          <scale type="sharedCategory"></scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+</form>
